@@ -14,19 +14,19 @@ const CONDITIONS: BookCondition[] = ['New', 'Like New', 'Good', 'Fair'];
 const PRESET_COVERS = [
   {
     label: 'Algorithms & CS',
-    url: '/src/assets/images/book_cover_algorithms_1794567285119.jpg',
+    url: '/assets/images/book_cover_algorithms_1794567285119.jpg',
   },
   {
     label: 'Circuits & Electronics',
-    url: '/src/assets/images/book_cover_circuits_1794567285219.jpg',
+    url: '/assets/images/book_cover_circuits_1794567285219.jpg',
   },
   {
     label: 'Mathematics & Calculus',
-    url: '/src/assets/images/book_cover_calculus_1794567285441.jpg',
+    url: '/assets/images/book_cover_calculus_1794567285441.jpg',
   },
   {
     label: 'Economics & Management',
-    url: '/src/assets/images/book_cover_economics_1794567286864.jpg',
+    url: '/assets/images/book_cover_economics_1794567286864.jpg',
   },
 ];
 

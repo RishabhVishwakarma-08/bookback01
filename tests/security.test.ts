@@ -39,6 +39,20 @@ afterAll(async () => {
 });
 
 describe('Security & Injection Testing', () => {
+  it('serves public images and redirects legacy image URLs', async () => {
+    const imagePath = '/assets/images/book_cover_algorithms_1794567285119.jpg';
+    const image = await request(app).get(imagePath);
+    expect(image.status).toBe(200);
+    expect(image.headers['content-type']).toContain('image/jpeg');
+    expect(image.body.length).toBeGreaterThan(0);
+
+    const legacyImage = await request(app).get(
+      '/src/assets/images/book_cover_algorithms_1794567285119.jpg',
+    );
+    expect(legacyImage.status).toBe(301);
+    expect(legacyImage.headers.location).toBe(imagePath);
+  });
+
   it('SEC-01 (NoSQL Injection): Rejects $ne / $gt / $where operator objects on login', async () => {
     const res = await request(app)
       .post('/api/auth/login')

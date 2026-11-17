@@ -49,7 +49,10 @@ export function createApp() {
 
   // Serve uploaded book photos and generated cover assets safely
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
-  app.use('/src/assets/images', express.static(path.resolve(process.cwd(), 'src/assets/images')));
+  app.use('/assets/images', express.static(path.resolve(process.cwd(), 'public/assets/images')));
+  app.use('/src/assets/images', (req, res) => {
+    res.redirect(301, `/assets/images${req.url}`);
+  });
 
   // Health endpoint
   app.get('/api/health', (_req, res) => {

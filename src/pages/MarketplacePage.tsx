@@ -169,7 +169,7 @@ export function MarketplacePage({ onNavigate }: MarketplacePageProps) {
             <div className="lg:col-span-5">
               <div className="h-full min-h-[260px] lg:min-h-[360px] rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
                 <img
-                  src="/src/assets/images/hero_campus_library_1794567284318.jpg"
+                  src="/assets/images/hero_campus_library_1794567284318.jpg"
                   alt="University students studying with stacked academic textbooks in a sunlit library"
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover"

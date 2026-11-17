@@ -181,7 +181,7 @@ export async function seedInitialDataIfEmpty(): Promise<void> {
       requestCount: 5,
       description:
         'Clean hardcover edition with zero pen markings or torn pages. Used during 4th semester Algorithms coursework. Handover available near Central Library reading hall.',
-      images: ['/src/assets/images/book_cover_algorithms_1794567285119.jpg'],
+      images: ['/assets/images/book_cover_algorithms_1794567285119.jpg'],
       status: 'available',
     },
     {
@@ -206,7 +206,7 @@ export async function seedInitialDataIfEmpty(): Promise<void> {
       requestCount: 3,
       description:
         'Available to borrow for the mid-sem and end-sem cycle (45 days). Light pencil notes on chapter 4 practice problems. Refundable ₹200 deposit on return.',
-      images: ['/src/assets/images/book_cover_circuits_1794567285219.jpg'],
+      images: ['/assets/images/book_cover_circuits_1794567285219.jpg'],
       status: 'available',
     },
     {
@@ -229,7 +229,7 @@ export async function seedInitialDataIfEmpty(): Promise<void> {
       requestCount: 4,
       description:
         'Donating my 1st-year engineering mathematics textbook to an incoming student. All formula sheets intact and binding is sturdy.',
-      images: ['/src/assets/images/book_cover_calculus_1794567285441.jpg'],
+      images: ['/assets/images/book_cover_calculus_1794567285441.jpg'],
       status: 'available',
     },
     {
@@ -252,7 +252,7 @@ export async function seedInitialDataIfEmpty(): Promise<void> {
       requestCount: 2,
       description:
         'Open to exchanging for a 6th-semester Compiler Design or Computer Networks reference book. Kept in protective sleeve.',
-      images: ['/src/assets/images/book_cover_economics_1794567286864.jpg'],
+      images: ['/assets/images/book_cover_economics_1794567286864.jpg'],
       status: 'available',
     },
     {
@@ -275,7 +275,7 @@ export async function seedInitialDataIfEmpty(): Promise<void> {
       requestCount: 3,
       description:
         'Virtually unused International Student Edition. Includes untouched index tabs and chapter summary cards.',
-      images: ['/src/assets/images/book_cover_algorithms_1794567285119.jpg'],
+      images: ['/assets/images/book_cover_algorithms_1794567285119.jpg'],
       status: 'available',
     },
     {
@@ -300,7 +300,7 @@ export async function seedInitialDataIfEmpty(): Promise<void> {
       requestCount: 2,
       description:
         'Great for 3rd semester exams and graph theory assignments. Cover edges show normal shelf wear; inside pages clean.',
-      images: ['/src/assets/images/book_cover_calculus_1794567285441.jpg'],
+      images: ['/assets/images/book_cover_calculus_1794567285441.jpg'],
       status: 'available',
     },
   ]);

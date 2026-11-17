@@ -275,7 +275,7 @@ router.post('/books', authenticate, async (req: AuthenticatedRequest, res) => {
       images:
         data.images && data.images.length > 0
           ? data.images
-          : ['/src/assets/images/book_cover_algorithms_1794567285119.jpg'],
+          : ['/assets/images/book_cover_algorithms_1794567285119.jpg'],
       status: 'available',
     });
 
