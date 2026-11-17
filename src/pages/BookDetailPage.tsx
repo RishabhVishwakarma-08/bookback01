@@ -27,11 +27,18 @@ export function BookDetailPage({ bookId, onNavigate }: BookDetailPageProps) {
   const [showReport, setShowReport] = useState(false);
   const [reportReason, setReportReason] = useState('Wrong Book Info');
   const [reportDetails, setReportDetails] = useState('');
+  const [reportError, setReportError] = useState('');
   const [reportSuccess, setReportSuccess] = useState('');
 
   const loadBook = useCallback(async () => {
     setLoading(true);
     setError('');
+    setImgFailed(false);
+    setRequestFeedback('');
+    setRequestError('');
+    setReportError('');
+    setReportSuccess('');
+    setShowReport(false);
     try {
       const data = await apiFetch<{
         book: BookListing;
@@ -82,12 +89,18 @@ export function BookDetailPage({ bookId, onNavigate }: BookDetailPageProps) {
 
   const handleReportSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!book) {
+      setReportError('Book details are unavailable to report right now.');
+      return;
+    }
+
+    setReportError('');
     try {
       await apiFetch('/reports', {
         method: 'POST',
         body: JSON.stringify({
           listingId: bookId,
-          reportedUserId: book?.ownerId,
+          reportedUserId: book.ownerId,
           reason: reportReason,
           details: reportDetails.trim(),
         }),
@@ -99,7 +112,7 @@ export function BookDetailPage({ bookId, onNavigate }: BookDetailPageProps) {
         setReportSuccess('');
       }, 1500);
     } catch (err: any) {
-      setRequestError(err.message || 'Could not submit report.');
+      setReportError(err.message || 'Could not submit report.');
     }
   };
 
@@ -438,6 +451,11 @@ export function BookDetailPage({ bookId, onNavigate }: BookDetailPageProps) {
               </p>
             ) : (
               <form onSubmit={handleReportSubmit} className="space-y-4">
+                {reportError && (
+                  <p className="p-3 rounded-lg bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-900 text-sm text-red-700 dark:text-red-300">
+                    {reportError}
+                  </p>
+                )}
                 <div>
                   <label htmlFor="report-reason" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
                     Reason
