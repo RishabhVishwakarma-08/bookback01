@@ -1,0 +1,8 @@
+{
+  "name": "BookBack",
+  "description": "Campus-based student textbook marketplace for buying, selling, lending, borrowing, exchanging, and donating academic books.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
