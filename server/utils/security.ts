@@ -10,9 +10,16 @@ const BCRYPT_ROUNDS = 12;
 let cachedJwtSecret: string | null = null;
 let cachedSetupKey: string | null = null;
 
+function isVercelRuntime(): boolean {
+  return process.env.VERCEL === '1' || Boolean(process.env.VERCEL_ENV);
+}
+
 export function getJwtSecret(): string {
   if (process.env.JWT_SECRET && process.env.JWT_SECRET.trim().length >= 16) {
     return process.env.JWT_SECRET.trim();
+  }
+  if (isVercelRuntime()) {
+    throw new Error('JWT_SECRET must be configured with at least 16 characters on Vercel.');
   }
   if (cachedJwtSecret) {
     return cachedJwtSecret;
@@ -41,6 +48,9 @@ export function getJwtSecret(): string {
 export function getAdminSetupKey(): string {
   if (process.env.ADMIN_SETUP_KEY && process.env.ADMIN_SETUP_KEY.trim().length >= 12) {
     return process.env.ADMIN_SETUP_KEY.trim();
+  }
+  if (isVercelRuntime()) {
+    throw new Error('ADMIN_SETUP_KEY must be configured with at least 12 characters on Vercel.');
   }
   if (cachedSetupKey) {
     return cachedSetupKey;

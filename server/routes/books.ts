@@ -1,8 +1,8 @@
-import fs from 'node:fs';
 import path from 'node:path';
 import { Router } from 'express';
 import mongoose from 'mongoose';
 import multer from 'multer';
+import { uploadDir } from '../utils/uploadStorage.js';
 import { BookListing } from '../models/BookListing.js';
 import { BookRequest } from '../models/BookRequest.js';
 import { Campus } from '../models/Campus.js';
@@ -23,9 +23,6 @@ import { escapeRegex } from '../utils/security.js';
 import { createBookSchema, updateBookSchema } from '../utils/validators.js';
 
 const router = Router();
-
-const uploadDir = path.resolve(process.cwd(), 'uploads');
-fs.mkdirSync(uploadDir, { recursive: true });
 
 const storage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, uploadDir),

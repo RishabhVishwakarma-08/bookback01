@@ -2,6 +2,7 @@ import path from 'node:path';
 import express from 'express';
 import helmet from 'helmet';
 import { sanitizeRequestMiddleware } from './middleware/sanitize.js';
+import { uploadDir } from './utils/uploadStorage.js';
 import adminRoutes from './routes/admin.js';
 import authRoutes from './routes/auth.js';
 import booksRoutes from './routes/books.js';
@@ -48,7 +49,7 @@ export function createApp() {
   app.use('/api', sanitizeRequestMiddleware);
 
   // Serve uploaded book photos and generated cover assets safely
-  app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+  app.use('/uploads', express.static(uploadDir));
   app.use('/assets/images', express.static(path.resolve(process.cwd(), 'public/assets/images')));
   app.use('/src/assets/images', (req, res) => {
     res.redirect(301, `/assets/images${req.url}`);

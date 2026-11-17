@@ -29,6 +29,11 @@ export async function connectDatabase(customUri?: string): Promise<string> {
   }
 
   const envUri = customUri || process.env.MONGODB_URI?.trim();
+  const isVercelRuntime = process.env.VERCEL === '1' || Boolean(process.env.VERCEL_ENV);
+
+  if (!envUri && isVercelRuntime) {
+    throw new Error('MONGODB_URI must be configured for Vercel deployments.');
+  }
 
   if (envUri) {
     try {
@@ -53,6 +58,9 @@ export async function connectDatabase(customUri?: string): Promise<string> {
         }
       } catch {
         // ignore cleanup failure
+      }
+      if (isVercelRuntime) {
+        throw err;
       }
     }
   }
