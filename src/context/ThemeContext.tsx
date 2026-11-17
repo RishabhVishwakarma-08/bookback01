@@ -1,5 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { apiFetch, getStoredToken } from '../api/client';
+import { getCurrentUserId, updateThemePreference } from '../data/localStore';
 import type { ThemePreference } from '../types';
 
 interface ThemeContextValue {
@@ -51,18 +51,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     applyHtmlClass(resolvedTheme);
   }, [resolvedTheme]);
 
-  const setTheme = useCallback((mode: ThemePreference, persistToServer = true) => {
+  const setTheme = useCallback((mode: ThemePreference, persistToProfile = true) => {
     setThemeState(mode);
     try {
       localStorage.setItem(STORAGE_KEY, mode);
     } catch {
       // ignore
     }
-    if (persistToServer && getStoredToken()) {
-      void apiFetch('/me/profile', {
-        method: 'PATCH',
-        body: JSON.stringify({ themePreference: mode }),
-      }).catch(() => {});
+    const userId = getCurrentUserId();
+    if (persistToProfile && userId) {
+      updateThemePreference(userId, mode);
     }
   }, []);
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Lock, ShieldCheck, Users } from 'lucide-react';
-import { apiFetch } from '../api/client';
+import { getCampuses, getSetupStatus } from '../data/localStore';
 import { useAuth } from '../context/AuthContext';
 import type { Campus } from '../types';
 
@@ -40,16 +40,10 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
   }, [user, isAdmin, onNavigate]);
 
   useEffect(() => {
-    apiFetch<{ campuses: Campus[] }>('/campuses')
-      .then((res) => {
-        setCampuses(res.campuses);
-        if (res.campuses[0]) setCampusId(res.campuses[0].id);
-      })
-      .catch(() => {});
-
-    apiFetch<{ needsSetup: boolean }>('/setup/status')
-      .then((res) => setNeedsSetup(res.needsSetup))
-      .catch(() => {});
+    const availableCampuses = getCampuses();
+    setCampuses(availableCampuses);
+    if (availableCampuses[0]) setCampusId(availableCampuses[0].id);
+    setNeedsSetup(getSetupStatus().needsSetup);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -356,8 +350,8 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
               Campus Trust & Security
             </h2>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-              Every BookBack account is protected with bcrypt password hashing, JWT authentication,
-              and private participant-only request messaging.
+              BookBack runs as a local demo. Accounts, listings, and messages stay in this browser;
+              do not enter real or sensitive passwords.
             </p>
           </div>
 
@@ -399,8 +393,7 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
                 Platform Owner Setup Pending
               </p>
               <p className="text-xs text-slate-700 dark:text-slate-300">
-                No Super Admin has been configured yet. Use your server Setup Key to initialize the
-                Main Owner and Team Admin accounts.
+                No demo administrator is configured yet. Initialize the local demo owner and Team Admin accounts.
               </p>
               <button
                 type="button"

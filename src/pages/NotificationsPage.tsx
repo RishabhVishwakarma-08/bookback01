@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Bell, CheckCheck } from 'lucide-react';
-import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { getNotifications, markNotificationRead } from '../data/localStore';
 import type { AppNotification } from '../types';
 
 interface NotificationsPageProps {
@@ -23,8 +23,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
     if (!user) return;
     setLoading(true);
     try {
-      const res = await apiFetch<{ notifications: AppNotification[] }>('/notifications');
-      setNotifications(res.notifications);
+      setNotifications(getNotifications(user.id));
       refreshUnreadCount();
     } catch {
       // ignore
@@ -39,7 +38,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
 
   const handleMarkRead = async (notif: AppNotification) => {
     if (!notif.isRead) {
-      await apiFetch(`/notifications/${notif.id}/read`, { method: 'PATCH' }).catch(() => {});
+      markNotificationRead(user!.id, notif.id);
       setNotifications((prev) =>
         prev.map((n) => (n.id === notif.id ? { ...n, isRead: true } : n)),
       );
@@ -53,7 +52,7 @@ export function NotificationsPage({ onNavigate }: NotificationsPageProps) {
   };
 
   const handleMarkAllRead = async () => {
-    await apiFetch('/notifications/read-all', { method: 'PATCH' });
+    markNotificationRead(user!.id);
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
     refreshUnreadCount();
   };

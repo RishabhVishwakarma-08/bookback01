@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiFetch } from '../api/client';
+import { getPlatformInfo } from '../data/localStore';
 import { BookBackLogo } from './BookBackLogo';
 
 interface FooterProps {
@@ -10,11 +10,7 @@ export function Footer({ onNavigate }: FooterProps) {
   const [campusName, setCampusName] = useState('University Book Exchange');
 
   useEffect(() => {
-    apiFetch<{ campusName?: string }>('/platform-info')
-      .then((res) => {
-        if (res.campusName) setCampusName(res.campusName);
-      })
-      .catch(() => {});
+    setCampusName(getPlatformInfo().campusName);
   }, []);
 
   return (

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Lock, ShieldCheck, Users } from 'lucide-react';
-import { apiFetch, setStoredToken } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import type { TeamPermission } from '../types';
+import { getSetupStatus, initializeDemoSetup, setCurrentUserId } from '../data/localStore';
 
 interface SetupPageProps {
   onNavigate: (path: string) => void;
@@ -62,14 +62,11 @@ export function SetupPage({ onNavigate }: SetupPageProps) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    apiFetch<{ needsSetup: boolean; campusName?: string; campusDomain?: string }>('/setup/status')
-      .then((res) => {
-        setNeedsSetup(res.needsSetup);
-        if (res.campusName) setCampusName(res.campusName);
-        if (res.campusDomain) setCampusDomain(res.campusDomain);
-      })
-      .catch(() => setNeedsSetup(false))
-      .finally(() => setChecking(false));
+    const status = getSetupStatus();
+    setNeedsSetup(status.needsSetup);
+    setCampusName(status.campusName);
+    setCampusDomain(status.campusDomain);
+    setChecking(false);
   }, []);
 
   const togglePermission = (
@@ -123,11 +120,8 @@ export function SetupPage({ onNavigate }: SetupPageProps) {
         };
       }
 
-      const res = await apiFetch<{ token: string }>('/setup/initialize', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      setStoredToken(res.token);
+      const newAdmin = initializeDemoSetup(payload);
+      setCurrentUserId(newAdmin.id);
       await refreshUser();
       onNavigate('/admin');
     } catch (err: any) {
@@ -174,16 +168,14 @@ export function SetupPage({ onNavigate }: SetupPageProps) {
       <div>
         <div className="inline-flex items-center gap-2 text-xs font-semibold text-[#0F5132] dark:text-emerald-400 mb-2">
           <ShieldCheck className="w-4 h-4" aria-hidden="true" />
-          <span>One-Time Cryptographic Initialization</span>
+          <span>One-Time Demo Initialization</span>
         </div>
         <h1 className="font-display text-2xl sm:text-3xl font-bold text-slate-900 dark:text-white">
           Configure BookBack Administration Team
         </h1>
         <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400 max-w-2xl">
           Create your Main Owner / Super Admin account along with your two initial Team Admin
-          accounts using the server&apos;s setup key (<code className="font-mono text-xs">ADMIN_SETUP_KEY</code> or{' '}
-          <code className="font-mono text-xs">./data/.setup_key</code>). Existing student records and
-          books remain preserved.
+          accounts for this browser. The demo data is stored locally and is not shared with a server.
         </p>
       </div>
 
@@ -194,15 +186,15 @@ export function SetupPage({ onNavigate }: SetupPageProps) {
       )}
 
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* Server Key & Campus Settings */}
+        {/* Demo confirmation & campus settings */}
         <section className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-6 space-y-4">
           <h2 className="font-display text-base font-semibold text-slate-900 dark:text-white">
-            1. Server Verification & Campus Identity
+            1. Demo Confirmation & Campus Identity
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="sm:col-span-3">
               <label htmlFor="setup-key" className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
-                Admin Setup Key
+                Demo Setup Confirmation
               </label>
               <input
                 id="setup-key"
@@ -210,7 +202,7 @@ export function SetupPage({ onNavigate }: SetupPageProps) {
                 required
                 value={setupKey}
                 onChange={(e) => setSetupKey(e.target.value)}
-                placeholder="Paste key from ADMIN_SETUP_KEY env or ./data/.setup_key"
+                placeholder="Enter any value to confirm local demo setup"
                 className="w-full px-3.5 py-2.5 text-sm font-mono bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white"
               />
             </div>

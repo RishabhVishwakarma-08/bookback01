@@ -21,12 +21,31 @@ import {
   UserPlus,
   Users,
 } from 'lucide-react';
-import { apiFetch, getStoredToken } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import {
+  addDiscrepancyNote,
+  createDemoTeamAdmin,
+  createLocalBackup,
+  downloadAdminExport,
+  downloadLocalBackup,
+  getAdminWorkspace,
+  restoreAuditRecord,
+  restoreLocalBackup,
+  runLocalDiscrepancyScan,
+  updateAdminDiscrepancy,
+  updateAdminListing,
+  updateAdminReport,
+  updateAdminRequest,
+  updateAdminUser,
+  updateDemoTeamAdmin,
+  updatePlatformSettings,
+} from '../data/localStore';
 import type {
   AdminStats,
   AuditLogItem,
   BackupSnapshotSummary,
+  BookListing,
+  BookRequest,
   DiscrepancyItem,
   PlatformSettings,
   TeamMember,
@@ -224,75 +243,20 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     setLoading(true);
     setError('');
     try {
-      const basePromises: Promise<unknown>[] = [
-        apiFetch<{
-          stats: AdminStats;
-          recentDiscrepancies: DiscrepancyItem[];
-          recentLogs: AuditLogItem[];
-        }>('/admin/overview'),
-        apiFetch<{ users: AdminUserRow[] }>('/admin/users'),
-        apiFetch<{ listings: AdminListingRow[] }>('/admin/listings'),
-        apiFetch<{ reports: AdminReportRow[] }>('/admin/reports'),
-        apiFetch<{ logs: AuditLogItem[] }>('/admin/audit-logs'),
-        apiFetch<{ settings: PlatformSettings }>('/admin/settings'),
-      ];
-
-      const [overviewRes, usersRes, listingsRes, reportsRes, auditRes, settingsRes] =
-        (await Promise.all(basePromises)) as [
-          { stats: AdminStats; recentDiscrepancies: DiscrepancyItem[]; recentLogs: AuditLogItem[] },
-          { users: AdminUserRow[] },
-          { listings: AdminListingRow[] },
-          { reports: AdminReportRow[] },
-          { logs: AuditLogItem[] },
-          { settings: PlatformSettings },
-        ];
-
-      setStats(overviewRes.stats);
-      setRecentDiscrepancies(overviewRes.recentDiscrepancies || []);
-      setRecentLogs(overviewRes.recentLogs || []);
-      setUsers(usersRes.users || []);
-      setListings(listingsRes.listings || []);
-      setReports(reportsRes.reports || []);
-      setAuditLogs(auditRes.logs || []);
-      setSettings(settingsRes.settings || null);
-
-      const optionalTasks: Promise<void>[] = [];
-
-      if (hasPermission('manage_requests')) {
-        optionalTasks.push(
-          apiFetch<{ requests: AdminRequestRow[] }>('/admin/requests').then((r) => {
-            setRequests(r.requests || []);
-          }),
-        );
-      }
-      if (hasPermission('investigate_discrepancies')) {
-        optionalTasks.push(
-          apiFetch<{ discrepancies: DiscrepancyItem[] }>('/admin/discrepancies').then((r) => {
-            setDiscrepancies(r.discrepancies || []);
-          }),
-        );
-      }
-      if (hasPermission('view_reports')) {
-        optionalTasks.push(
-          apiFetch<{ analytics: AnalyticsData }>('/admin/analytics').then((r) => {
-            setAnalytics(r.analytics || null);
-          }),
-        );
-      }
-      if (isSuperAdmin) {
-        optionalTasks.push(
-          apiFetch<{ team: TeamMember[] }>('/admin/team').then((r) => {
-            setTeam(r.team || []);
-          }),
-        );
-        optionalTasks.push(
-          apiFetch<{ backups: BackupSnapshotSummary[] }>('/admin/backups').then((r) => {
-            setBackups(r.backups || []);
-          }),
-        );
-      }
-
-      await Promise.all(optionalTasks);
+      const workspace = getAdminWorkspace();
+      setStats(workspace.stats);
+      setRecentDiscrepancies(workspace.recentDiscrepancies);
+      setRecentLogs(workspace.recentLogs);
+      setUsers(workspace.users);
+      setListings(workspace.listings);
+      setRequests(workspace.requests);
+      setDiscrepancies(workspace.discrepancies);
+      setReports(workspace.reports);
+      setAuditLogs(workspace.logs);
+      setTeam(workspace.team);
+      setAnalytics(workspace.analytics);
+      setSettings(workspace.settings);
+      setBackups(workspace.backups);
     } catch (err: any) {
       setError(err.message || 'Failed to load admin console.');
     } finally {
@@ -341,18 +305,15 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     if (!editingBook) return;
     setError('');
     try {
-      await apiFetch(`/admin/listings/${editingBook.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          title: bookForm.title,
-          author: bookForm.author,
-          subject: bookForm.subject,
-          price: Number(bookForm.price),
-          quantity: Number(bookForm.quantity),
-          availableQuantity: Number(bookForm.availableQuantity),
-          status: bookForm.status,
-          reason: bookForm.reason,
-        }),
+      updateAdminListing(user!.id, editingBook.id, {
+        title: bookForm.title,
+        author: bookForm.author,
+        subject: bookForm.subject,
+        price: Number(bookForm.price),
+        quantity: Number(bookForm.quantity),
+        availableQuantity: Number(bookForm.availableQuantity),
+        status: bookForm.status as BookListing['status'],
+        reason: bookForm.reason,
       });
       setEditingBook(null);
       showToast('Book listing updated and recorded in Activity Logs.');
@@ -367,9 +328,10 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     if (!editingRequest) return;
     setError('');
     try {
-      await apiFetch(`/admin/requests/${editingRequest.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify(requestForm),
+      updateAdminRequest(user!.id, editingRequest.id, {
+        status: requestForm.status as BookRequest['status'],
+        pickupLocation: requestForm.pickupLocation,
+        reason: requestForm.reason,
       });
       setEditingRequest(null);
       showToast('Borrowing request corrected and logged.');
@@ -382,10 +344,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
   const handleRunScan = async () => {
     setError('');
     try {
-      const res = await apiFetch<{ message: string; createdOrUpdated: number }>(
-        '/admin/discrepancies/scan',
-        { method: 'POST' },
-      );
+      const res = runLocalDiscrepancyScan();
       showToast(`${res.message} Flagged/updated ${res.createdOrUpdated} items.`);
       await loadAll();
     } catch (err: any) {
@@ -398,20 +357,14 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     if (!inspectingDiscrepancy) return;
     setError('');
     try {
-      await apiFetch(`/admin/discrepancies/${inspectingDiscrepancy.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          status: discrepancyForm.status,
-          assignedAdminId: discrepancyForm.assignedAdminId || null,
-          resolutionSummary: discrepancyForm.resolutionSummary,
-          reason: discrepancyForm.reason,
-        }),
+      updateAdminDiscrepancy(user!.id, inspectingDiscrepancy.id, {
+        status: discrepancyForm.status,
+        assignedAdminId: discrepancyForm.assignedAdminId || null,
+        resolutionSummary: discrepancyForm.resolutionSummary,
+        reason: discrepancyForm.reason,
       });
       if (discrepancyForm.note.trim().length >= 3) {
-        await apiFetch(`/admin/discrepancies/${inspectingDiscrepancy.id}/notes`, {
-          method: 'POST',
-          body: JSON.stringify({ note: discrepancyForm.note.trim() }),
-        });
+        addDiscrepancyNote(user!.id, inspectingDiscrepancy.id, discrepancyForm.note.trim());
       }
       setInspectingDiscrepancy(null);
       showToast('Discrepancy investigation updated.');
@@ -425,10 +378,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     if (!inspectingDiscrepancy || discrepancyForm.note.trim().length < 3) return;
     setError('');
     try {
-      await apiFetch(`/admin/discrepancies/${inspectingDiscrepancy.id}/notes`, {
-        method: 'POST',
-        body: JSON.stringify({ note: discrepancyForm.note.trim() }),
-      });
+      addDiscrepancyNote(user!.id, inspectingDiscrepancy.id, discrepancyForm.note.trim());
       setDiscrepancyForm((prev) => ({ ...prev, note: '' }));
       showToast('Investigation note appended.');
       await loadAll();
@@ -441,10 +391,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     e.preventDefault();
     setError('');
     try {
-      await apiFetch('/admin/team', {
-        method: 'POST',
-        body: JSON.stringify(newTeamForm),
-      });
+      createDemoTeamAdmin(user!.id, newTeamForm);
       setNewTeamForm({
         name: '',
         email: '',
@@ -465,13 +412,10 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     if (!editingTeamMember) return;
     setError('');
     try {
-      await apiFetch(`/admin/team/${editingTeamMember.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          permissions: teamEditPerms,
-          isSuspended: teamEditSuspended,
-          reason: teamEditReason,
-        }),
+      updateDemoTeamAdmin(user!.id, editingTeamMember.id, {
+        permissions: teamEditPerms,
+        isSuspended: teamEditSuspended,
+        reason: teamEditReason,
       });
       setEditingTeamMember(null);
       showToast('Team Admin permissions/status updated.');
@@ -486,13 +430,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     if (!settings) return;
     setError('');
     try {
-      await apiFetch('/admin/settings', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          ...settings,
-          reason: settingsReason,
-        }),
-      });
+      updatePlatformSettings(user!.id, settings, settingsReason);
       setSettingsReason('');
       showToast('Platform security settings saved.');
       await loadAll();
@@ -504,10 +442,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
   const handleCreateBackup = async () => {
     setError('');
     try {
-      await apiFetch('/admin/backups', {
-        method: 'POST',
-        body: JSON.stringify({ label: backupLabel.trim() || undefined }),
-      });
+      createLocalBackup(user!.id, backupLabel.trim() || undefined);
       setBackupLabel('');
       showToast('Database backup snapshot created.');
       await loadAll();
@@ -516,18 +451,10 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
     }
   };
 
-  const handleAuthenticatedDownload = async (endpoint: string, filename: string) => {
+  const handleDownload = (content: string, filename: string, contentType: string) => {
     setError('');
     try {
-      const token = getStoredToken();
-      const res = await fetch(`/api${endpoint}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || 'Download failed.');
-      }
-      const blob = await res.blob();
+      const blob = new Blob([content], { type: contentType });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -536,8 +463,8 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message || 'Export failed.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed.');
     }
   };
 
@@ -857,9 +784,9 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                                       'Enter the verification audit reason (stored permanently in Activity Logs).',
                                       u.verified ? 'Revoke Verification' : 'Verify Student',
                                       async (reason) => {
-                                        await apiFetch(`/admin/users/${u.id}`, {
-                                          method: 'PATCH',
-                                          body: JSON.stringify({ verified: !u.verified, reason }),
+                                        updateAdminUser(user.id, u.id, {
+                                          verified: !u.verified,
+                                          reason,
                                         });
                                         showToast(`Updated verification for ${u.name}.`);
                                       },
@@ -877,13 +804,10 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                                       'Document the verified policy or discrepancy review reason.',
                                       u.isSuspended ? 'Reinstate Account' : 'Suspend Account',
                                       async (reason) => {
-                                        await apiFetch(`/admin/users/${u.id}`, {
-                                          method: 'PATCH',
-                                          body: JSON.stringify({
-                                            isSuspended: !u.isSuspended,
-                                            suspensionReason: reason,
-                                            reason,
-                                          }),
+                                        updateAdminUser(user.id, u.id, {
+                                          isSuspended: !u.isSuspended,
+                                          suspensionReason: reason,
+                                          reason,
                                         });
                                         showToast(
                                           u.isSuspended
@@ -984,13 +908,10 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                               onClick={() =>
                                 openReasonPrompt(
                                   `Permanently Delete "${b.title}"`,
-                                  'This removes the listing from the database permanently. Enter a mandatory audit reason.',
+                                  'This removes the listing from this browser. Enter a mandatory audit reason.',
                                   'Delete Permanently',
                                   async (reason) => {
-                                    await apiFetch(`/admin/listings/${b.id}`, {
-                                      method: 'DELETE',
-                                      body: JSON.stringify({ reason }),
-                                    });
+                                    updateAdminListing(user.id, b.id, { reason }, true);
                                     showToast(`Listing "${b.title}" permanently deleted.`);
                                   },
                                   true,
@@ -1216,10 +1137,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                                 `Add a resolution note for "${r.reason}".`,
                                 'Mark Resolved',
                                 async (reason) => {
-                                  await apiFetch(`/admin/reports/${r.id}`, {
-                                    method: 'PATCH',
-                                    body: JSON.stringify({ status: 'resolved', adminNote: reason }),
-                                  });
+                                  updateAdminReport(user.id, r.id, 'resolved', reason);
                                   showToast('Student report resolved.');
                                 },
                               )
@@ -1236,10 +1154,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                                 `Add a dismissal note for "${r.reason}".`,
                                 'Dismiss Report',
                                 async (reason) => {
-                                  await apiFetch(`/admin/reports/${r.id}`, {
-                                    method: 'PATCH',
-                                    body: JSON.stringify({ status: 'dismissed', adminNote: reason }),
-                                  });
+                                  updateAdminReport(user.id, r.id, 'dismissed', reason);
                                   showToast('Student report dismissed.');
                                 },
                               )
@@ -1328,10 +1243,7 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                                     `Revert target "${log.details}" back to its previous snapshot before "${log.action}".`,
                                     'Restore Record',
                                     async (reason) => {
-                                      await apiFetch(`/admin/audit-logs/${log.id}/restore`, {
-                                        method: 'POST',
-                                        body: JSON.stringify({ reason }),
-                                      });
+                                      restoreAuditRecord(user.id, log.id, reason);
                                       showToast('Previous record state restored successfully.');
                                     },
                                   )
@@ -1522,18 +1434,19 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {[
-                      { type: 'books', label: 'Books CSV' },
-                      { type: 'requests', label: 'Requests CSV' },
-                      { type: 'discrepancies', label: 'Discrepancies CSV' },
-                      { type: 'audit', label: 'Activity Logs CSV' },
+                      { type: 'books' as const, label: 'Books CSV' },
+                      { type: 'requests' as const, label: 'Requests CSV' },
+                      { type: 'discrepancies' as const, label: 'Discrepancies CSV' },
+                      { type: 'audit' as const, label: 'Activity Logs CSV' },
                     ].map((exp) => (
                       <button
                         key={exp.type}
                         type="button"
                         onClick={() =>
-                          handleAuthenticatedDownload(
-                            `/admin/analytics/export?type=${exp.type}`,
+                          handleDownload(
+                            downloadAdminExport(exp.type),
                             `bookback-${exp.type}-report.csv`,
+                            'text/csv',
                           )
                         }
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
@@ -1796,9 +1709,10 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                             <button
                               type="button"
                               onClick={() =>
-                                handleAuthenticatedDownload(
-                                  `/admin/backups/${bk.id}/download`,
+                                handleDownload(
+                                  downloadLocalBackup(bk.id),
                                   `bookback-backup-${bk.id}.json`,
+                                  'application/json',
                                 )
                               }
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer"
@@ -1811,14 +1725,11 @@ export function AdminPage({ onNavigate }: AdminPageProps) {
                               onClick={() =>
                                 openReasonPrompt(
                                   `Restore from "${bk.label}"`,
-                                  'This will restore book listings from the selected backup snapshot.',
+                                  'This will restore book listings saved in this browser.',
                                   'Restore Snapshot',
                                   async (reason) => {
-                                    await apiFetch(`/admin/backups/${bk.id}/restore`, {
-                                      method: 'POST',
-                                      body: JSON.stringify({ reason }),
-                                    });
-                                    showToast('Database records restored from snapshot.');
+                                    restoreLocalBackup(user.id, bk.id, reason);
+                                    showToast('Local records restored from snapshot.');
                                   },
                                 )
                               }

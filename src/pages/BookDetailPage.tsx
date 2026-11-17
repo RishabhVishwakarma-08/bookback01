@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowLeft, BookOpen, Flag, ShieldCheck } from 'lucide-react';
-import { apiFetch } from '../api/client';
 import { formatOfferPrice } from '../components/BookCard';
 import { useAuth } from '../context/AuthContext';
+import { createBookRequest, getBook, submitReport } from '../data/localStore';
 import type { BookListing } from '../types';
 
 interface BookDetailPageProps {
@@ -40,10 +40,7 @@ export function BookDetailPage({ bookId, onNavigate }: BookDetailPageProps) {
     setReportSuccess('');
     setShowReport(false);
     try {
-      const data = await apiFetch<{
-        book: BookListing;
-        existingRequest: { id: string; status: string } | null;
-      }>(`/books/${bookId}`);
+      const data = getBook(bookId, user?.id);
       setBook(data.book);
       setExistingRequest(data.existingRequest);
     } catch (err: any) {
@@ -51,7 +48,7 @@ export function BookDetailPage({ bookId, onNavigate }: BookDetailPageProps) {
     } finally {
       setLoading(false);
     }
-  }, [bookId]);
+  }, [bookId, user?.id]);
 
   useEffect(() => {
     loadBook();
@@ -67,17 +64,8 @@ export function BookDetailPage({ bookId, onNavigate }: BookDetailPageProps) {
     setRequestFeedback('');
     setSubmitting(true);
     try {
-      const res = await apiFetch<{ request: { id: string; status: string } }>(
-        `/books/${bookId}/requests`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            message: message.trim(),
-            pickupLocation: pickupLocation.trim(),
-          }),
-        },
-      );
-      setExistingRequest(res.request);
+      const request = createBookRequest(bookId, user.id, message.trim(), pickupLocation.trim());
+      setExistingRequest({ id: request.id, status: request.status });
       setRequestFeedback('Request sent! You can now message the owner to coordinate handover.');
       setMessage('');
     } catch (err: any) {
@@ -96,15 +84,7 @@ export function BookDetailPage({ bookId, onNavigate }: BookDetailPageProps) {
 
     setReportError('');
     try {
-      await apiFetch('/reports', {
-        method: 'POST',
-        body: JSON.stringify({
-          listingId: bookId,
-          reportedUserId: book.ownerId,
-          reason: reportReason,
-          details: reportDetails.trim(),
-        }),
-      });
+      submitReport(user?.id || '', bookId, book.ownerId, reportReason, reportDetails.trim());
       setReportSuccess('Report submitted to campus moderators.');
       setReportDetails('');
       setTimeout(() => {

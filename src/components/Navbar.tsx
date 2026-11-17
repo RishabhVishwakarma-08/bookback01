@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Menu, Monitor, Moon, Sun, X } from 'lucide-react';
-import { apiFetch } from '../api/client';
+import { getPlatformInfo } from '../data/localStore';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import type { ThemePreference } from '../types';
@@ -18,11 +18,7 @@ export function Navbar({ currentPath, onNavigate }: NavbarProps) {
   const [maintenanceBanner, setMaintenanceBanner] = useState('');
 
   useEffect(() => {
-    apiFetch<{ maintenanceBanner?: string }>('/platform-info')
-      .then((res) => {
-        if (res.maintenanceBanner) setMaintenanceBanner(res.maintenanceBanner);
-      })
-      .catch(() => {});
+    setMaintenanceBanner(getPlatformInfo().maintenanceBanner);
   }, [currentPath]);
 
   const navItems = [

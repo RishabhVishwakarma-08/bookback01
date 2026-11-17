@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
-import { apiFetch } from '../api/client';
 import { BookCard, formatOfferPrice } from '../components/BookCard';
 import { useAuth } from '../context/AuthContext';
+import { deleteBook, getBooks, getRequests, updateBookStatus } from '../data/localStore';
 import type { BookListing, BookRequest } from '../types';
 
 interface DashboardPageProps {
@@ -27,14 +27,11 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
     if (!user) return;
     setLoading(true);
     try {
-      const [mineRes, reqRes, recRes] = await Promise.all([
-        apiFetch<{ books: BookListing[] }>(`/books?ownerId=${user.id}&status=all`),
-        apiFetch<{ requests: BookRequest[] }>('/requests'),
-        apiFetch<{ books: BookListing[] }>(`/books?branch=${encodeURIComponent(user.branch)}&status=available&limit=3`),
-      ]);
-      setMyBooks(mineRes.books);
-      setRequests(reqRes.requests);
-      setRecommended(recRes.books.filter((b) => b.ownerId !== user.id).slice(0, 3));
+      setMyBooks(getBooks({ ownerId: user.id, status: 'all' }));
+      setRequests(getRequests(user.id));
+      setRecommended(getBooks({ branch: user.branch, status: 'available', limit: 10 })
+        .filter((book) => book.ownerId !== user.id)
+        .slice(0, 3));
     } catch (err: any) {
       setActionError(err.message || 'Could not load dashboard data.');
     } finally {
@@ -49,10 +46,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
   const handleToggleStatus = async (book: BookListing) => {
     const nextStatus = book.status === 'available' ? 'deactivated' : 'available';
     try {
-      await apiFetch(`/books/${book.id}`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status: nextStatus }),
-      });
+      updateBookStatus(book.id, nextStatus);
       loadDashboard();
     } catch (err: any) {
       setActionError(err.message || 'Could not update listing status.');
@@ -61,7 +55,7 @@ export function DashboardPage({ onNavigate }: DashboardPageProps) {
 
   const handleDelete = async (bookId: string) => {
     try {
-      await apiFetch(`/books/${bookId}`, { method: 'DELETE' });
+      deleteBook(bookId, user!.id);
       loadDashboard();
     } catch (err: any) {
       setActionError(err.message || 'Could not remove listing.');

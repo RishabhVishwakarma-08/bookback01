@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ArrowRight, Flame, Search, SlidersHorizontal, Sparkles, X } from 'lucide-react';
-import { apiFetch } from '../api/client';
 import { BookCard } from '../components/BookCard';
+import { getBooks, getPlatformInfo } from '../data/localStore';
 import { useAuth } from '../context/AuthContext';
 import type { BookListing } from '../types';
 
@@ -31,35 +31,25 @@ export function MarketplacePage({ onNavigate }: MarketplacePageProps) {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    apiFetch<{ campusName?: string }>('/platform-info')
-      .then((res) => {
-        if (res.campusName) setCampusName(res.campusName);
-      })
-      .catch(() => {});
-
-    apiFetch<{ books: BookListing[] }>('/books?sort=popular&limit=3&status=available')
-      .then((res) => setPopularBooks(res.books))
-      .catch(() => {});
+    setCampusName(getPlatformInfo().campusName);
+    setPopularBooks(getBooks({ sort: 'popular', limit: 3, status: 'available' }));
   }, []);
 
   const loadBooks = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const params = new URLSearchParams();
-      if (query) params.set('q', query);
-      if (offerType !== 'all') params.set('offerType', offerType);
-      if (semester !== 'all') params.set('semester', semester);
-      if (branch !== 'all') params.set('branch', branch);
-      if (condition !== 'all') params.set('condition', condition);
-      if (sort) params.set('sort', sort);
-      params.set('status', 'available');
-
-      const data = await apiFetch<{ books: BookListing[]; pagination: { total: number } }>(
-        `/books?${params.toString()}`,
-      );
-      setBooks(data.books);
-      setTotal(data.pagination.total);
+      const results = getBooks({
+        query,
+        offerType,
+        semester,
+        branch,
+        condition,
+        sort,
+        status: 'available',
+      });
+      setBooks(results);
+      setTotal(results.length);
     } catch (err: any) {
       setError(err.message || 'Could not load textbook listings.');
     } finally {

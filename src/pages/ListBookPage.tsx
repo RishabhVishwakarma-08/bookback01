@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ArrowLeft, CheckCircle2, Upload } from 'lucide-react';
-import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import { getBook, imageFileToDataUrl, saveBook } from '../data/localStore';
 import type { BookCondition, BookListing, OfferType } from '../types';
 
 interface ListBookPageProps {
@@ -69,8 +69,8 @@ export function ListBookPage({ editBookId, onNavigate }: ListBookPageProps) {
 
   useEffect(() => {
     if (!editBookId) return;
-    apiFetch<{ book: BookListing }>(`/books/${editBookId}`)
-      .then(({ book }) => {
+    try {
+      const { book } = getBook(editBookId, user?.id);
         setTitle(book.title);
         setAuthor(book.author);
         setSubject(book.subject);
@@ -87,9 +87,10 @@ export function ListBookPage({ editBookId, onNavigate }: ListBookPageProps) {
         setQuantity(String(book.quantity || 1));
         setDescription(book.description);
         if (book.images?.[0]) setImageUrl(book.images[0]);
-      })
-      .catch((err) => setError(err.message || 'Could not load listing for editing.'));
-  }, [editBookId]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not load listing for editing.');
+    }
+  }, [editBookId, user?.id]);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -97,13 +98,7 @@ export function ListBookPage({ editBookId, onNavigate }: ListBookPageProps) {
     setUploading(true);
     setError('');
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const res = await apiFetch<{ url: string }>('/upload', {
-        method: 'POST',
-        body: formData,
-      });
-      setImageUrl(res.url);
+      setImageUrl(await imageFileToDataUrl(file));
     } catch (err: any) {
       setError(err.message || 'Image upload failed.');
     } finally {
@@ -136,17 +131,9 @@ export function ListBookPage({ editBookId, onNavigate }: ListBookPageProps) {
       };
 
       if (editBookId) {
-        const res = await apiFetch<{ book: BookListing }>(`/books/${editBookId}`, {
-          method: 'PATCH',
-          body: JSON.stringify(payload),
-        });
-        setCreatedBook(res.book);
+        setCreatedBook(saveBook(payload, user!.id, editBookId));
       } else {
-        const res = await apiFetch<{ book: BookListing }>('/books', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
-        setCreatedBook(res.book);
+        setCreatedBook(saveBook(payload, user!.id));
       }
     } catch (err: any) {
       setError(err.message || 'Could not save book listing.');
@@ -166,7 +153,7 @@ export function ListBookPage({ editBookId, onNavigate }: ListBookPageProps) {
             </h1>
             <p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
               <strong className="text-slate-900 dark:text-white">{createdBook.title}</strong> is saved in
-              MongoDB and visible in the campus catalog.
+              this browser and visible in the campus catalog.
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-center gap-3 pt-2">

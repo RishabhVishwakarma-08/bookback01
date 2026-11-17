@@ -1,5 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { apiFetch, getStoredToken, setStoredToken } from '../api/client';
+import {
+  getCurrentUserId,
+  getDemoUser,
+  getNotifications,
+  loginDemoUser,
+  registerDemoUser,
+  setCurrentUserId,
+  subscribeToLocalChanges,
+} from '../data/localStore';
 import type { TeamPermission, User } from '../types';
 
 interface AuthContextValue {
@@ -50,59 +58,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const refreshUnreadCount = useCallback(async () => {
-    if (!getStoredToken()) {
+    const userId = getCurrentUserId();
+    if (!userId) {
       setUnreadCount(0);
       return;
     }
-    try {
-      const res = await apiFetch<{ unreadCount: number }>('/notifications');
-      setUnreadCount(res.unreadCount || 0);
-    } catch {
-      // ignore transient poll failures
-    }
+    setUnreadCount(getNotifications(userId).filter((notification) => !notification.isRead).length);
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const token = getStoredToken();
-    if (!token) {
+    const userId = getCurrentUserId();
+    if (!userId) {
       setUser(null);
       setUnreadCount(0);
       setLoading(false);
       return;
     }
-    try {
-      const res = await apiFetch<{ user: User }>('/auth/me');
-      setUser(res.user);
-      await refreshUnreadCount();
-    } catch {
-      setStoredToken(null);
+    const storedUser = getDemoUser(userId);
+    if (!storedUser) {
+      setCurrentUserId(null);
       setUser(null);
       setUnreadCount(0);
-    } finally {
-      setLoading(false);
+    } else {
+      setUser(storedUser);
+      await refreshUnreadCount();
     }
+    setLoading(false);
   }, [refreshUnreadCount]);
 
   useEffect(() => {
-    refreshUser();
+    void refreshUser();
   }, [refreshUser]);
 
   useEffect(() => {
-    if (!user) return;
-    const id = window.setInterval(refreshUnreadCount, 20000);
-    return () => window.clearInterval(id);
-  }, [user, refreshUnreadCount]);
+    return subscribeToLocalChanges(() => {
+      void refreshUser();
+    });
+  }, [refreshUser]);
 
   const login = useCallback(
     async (identifier: string, password: string) => {
-      const res = await apiFetch<{ token: string; user: User }>('/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ identifier, password }),
-      });
-      setStoredToken(res.token);
-      setUser(res.user);
+      const signedInUser = loginDemoUser(identifier, password);
+      setCurrentUserId(signedInUser.id);
+      setUser(signedInUser);
       await refreshUnreadCount();
-      return res.user;
+      return signedInUser;
     },
     [refreshUnreadCount],
   );
@@ -118,20 +118,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       campusId?: string;
       password: string;
     }) => {
-      const res = await apiFetch<{ token: string; user: User }>('/auth/register', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-      setStoredToken(res.token);
-      setUser(res.user);
+      const registeredUser = registerDemoUser(payload);
+      setCurrentUserId(registeredUser.id);
+      setUser(registeredUser);
       setUnreadCount(0);
-      return res.user;
+      return registeredUser;
     },
     [],
   );
 
   const logout = useCallback(() => {
-    setStoredToken(null);
+    setCurrentUserId(null);
     setUser(null);
     setUnreadCount(0);
   }, []);

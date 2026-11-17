@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import { LogOut, Monitor, Moon, ShieldCheck, Star, Sun } from 'lucide-react';
-import { apiFetch } from '../api/client';
 import { BookCard } from '../components/BookCard';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { getProfileData, updateProfile } from '../data/localStore';
 import type { BookListing, ProfileReview, StudentPublicProfile, ThemePreference } from '../types';
 
 interface ProfilePageProps {
@@ -45,11 +45,7 @@ export function ProfilePage({ profileUserId, onNavigate }: ProfilePageProps) {
     setLoading(true);
     setError('');
     try {
-      const data = await apiFetch<{
-        profile: StudentPublicProfile;
-        listings: BookListing[];
-        reviews: ProfileReview[];
-      }>(`/users/${targetId}/profile`);
+      const data = getProfileData(targetId);
       setProfile(data.profile);
       setListings(data.listings);
       setReviews(data.reviews);
@@ -77,16 +73,13 @@ export function ProfilePage({ profileUserId, onNavigate }: ProfilePageProps) {
     setSaveMessage('');
     setError('');
     try {
-      await apiFetch('/me/profile', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          name: name.trim(),
-          branch,
-          year,
-          semester,
-          bio: bio.trim(),
-          themePreference: theme,
-        }),
+      updateProfile(user!.id, {
+        name: name.trim(),
+        branch,
+        year,
+        semester,
+        bio: bio.trim(),
+        themePreference: theme,
       });
       await refreshUser();
       await loadProfile();

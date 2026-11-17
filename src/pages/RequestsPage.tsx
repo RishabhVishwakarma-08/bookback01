@@ -1,7 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Send, Star } from 'lucide-react';
-import { apiFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import {
+  completeTransaction,
+  getRequestDetails,
+  getRequests,
+  sendRequestMessage,
+  submitTransactionReview,
+  updateRequestStatus,
+} from '../data/localStore';
 import type { BookRequest, RequestMessage } from '../types';
 
 interface RequestsPageProps {
@@ -36,11 +43,10 @@ export function RequestsPage({ initialRequestId, onNavigate }: RequestsPageProps
     if (!user) return;
     setLoading(true);
     try {
-      const qs = tab === 'all' ? '' : `?direction=${tab}`;
-      const res = await apiFetch<{ requests: BookRequest[] }>(`/requests${qs}`);
-      setRequests(res.requests);
-      if (!selectedId && res.requests[0]) {
-        setSelectedId(res.requests[0].id);
+      const results = getRequests(user.id, tab);
+      setRequests(results);
+      if (!selectedId && results[0]) {
+        setSelectedId(results[0].id);
       }
     } catch (err: any) {
       setError(err.message || 'Could not load requests.');
@@ -57,13 +63,10 @@ export function RequestsPage({ initialRequestId, onNavigate }: RequestsPageProps
     async (reqId: string) => {
       if (!reqId || !user) return;
       try {
-        const [detailRes, msgRes] = await Promise.all([
-          apiFetch<{ request: BookRequest; hasReviewed: boolean }>(`/requests/${reqId}`),
-          apiFetch<{ messages: RequestMessage[] }>(`/requests/${reqId}/messages`),
-        ]);
-        setSelectedDetail(detailRes.request);
-        setHasReviewed(detailRes.hasReviewed);
-        setMessages(msgRes.messages);
+        const detail = getRequestDetails(reqId, user.id);
+        setSelectedDetail(detail.request);
+        setHasReviewed(detail.hasReviewed);
+        setMessages(detail.messages);
         refreshUnreadCount();
       } catch (err: any) {
         setError(err.message || 'Could not load conversation.');
@@ -87,11 +90,8 @@ export function RequestsPage({ initialRequestId, onNavigate }: RequestsPageProps
     setSending(true);
     setError('');
     try {
-      const res = await apiFetch<{ message: RequestMessage }>(`/requests/${selectedId}/messages`, {
-        method: 'POST',
-        body: JSON.stringify({ body: newMessage.trim() }),
-      });
-      setMessages((prev) => [...prev, res.message]);
+      const message = sendRequestMessage(selectedId, user!.id, newMessage.trim());
+      setMessages((prev) => [...prev, message]);
       setNewMessage('');
     } catch (err: any) {
       setError(err.message || 'Failed to send message.');
@@ -104,10 +104,7 @@ export function RequestsPage({ initialRequestId, onNavigate }: RequestsPageProps
     if (!selectedId) return;
     setError('');
     try {
-      await apiFetch(`/requests/${selectedId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify({ status }),
-      });
+      updateRequestStatus(selectedId, user!.id, status);
       await Promise.all([loadRequests(), loadConversation(selectedId)]);
     } catch (err: any) {
       setError(err.message || 'Could not update request status.');
@@ -118,9 +115,7 @@ export function RequestsPage({ initialRequestId, onNavigate }: RequestsPageProps
     if (!selectedDetail?.transaction?.id) return;
     setError('');
     try {
-      await apiFetch(`/transactions/${selectedDetail.transaction.id}/complete`, {
-        method: 'POST',
-      });
+      completeTransaction(selectedDetail.transaction.id, user!.id);
       await Promise.all([loadRequests(), loadConversation(selectedDetail.id)]);
     } catch (err: any) {
       setError(err.message || 'Could not mark handover complete.');
@@ -133,10 +128,12 @@ export function RequestsPage({ initialRequestId, onNavigate }: RequestsPageProps
     setReviewSubmitting(true);
     setError('');
     try {
-      await apiFetch(`/transactions/${selectedDetail.transaction.id}/reviews`, {
-        method: 'POST',
-        body: JSON.stringify({ rating, comment: reviewComment.trim() }),
-      });
+      submitTransactionReview(
+        selectedDetail.transaction.id,
+        user!.id,
+        rating,
+        reviewComment.trim(),
+      );
       setHasReviewed(true);
       setReviewComment('');
     } catch (err: any) {
