@@ -27,6 +27,7 @@ interface DemoUser extends User {
   isSuspended: boolean;
   suspensionReason: string;
   failedLoginAttempts: number;
+  password?: string;
 }
 
 interface DemoReport {
@@ -160,6 +161,7 @@ function makeUser(
   semester: number,
   role: User['role'] = 'student',
   permissions?: TeamPermission[],
+  password?: string,
 ): DemoUser {
   return {
     id,
@@ -176,6 +178,7 @@ function makeUser(
     isSuspended: false,
     suspensionReason: '',
     failedLoginAttempts: 0,
+    password,
     themePreference: 'system',
     bio: '',
     createdAt: dateDaysAgo(90),
@@ -277,13 +280,14 @@ function makeInitialDatabase(): DemoDatabase {
     makeUser(
       'user-super-admin',
       'Campus Owner',
-      'admin@mitsgwalior.in',
+      'admin@gmail.com',
       'SUPER001',
       'CSE',
       '4th Year',
       8,
       'super_admin',
       DEFAULT_PERMISSIONS,
+      'admin123',
     ),
     makeUser(
       'user-team-admin',
@@ -597,6 +601,11 @@ function readDatabase(): DemoDatabase {
     if (raw) {
       const parsed = JSON.parse(raw) as DemoDatabase;
       if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.books)) {
+        const seededAdmin = parsed.users.find((user) => user.id === 'user-super-admin');
+        if (seededAdmin) {
+          seededAdmin.email = 'admin@gmail.com';
+          seededAdmin.password = 'admin123';
+        }
         memoryDatabase = parsed;
         return parsed;
       }
@@ -778,6 +787,7 @@ function createDemoUser(payload: {
   year: string;
   semester: number;
   campusId?: string;
+  password?: string;
 }): DemoUser {
   const database = readDatabase();
   const user = makeUser(
@@ -788,6 +798,9 @@ function createDemoUser(payload: {
     payload.branch,
     payload.year,
     payload.semester,
+    'student',
+    [],
+    payload.password,
   );
   user.campusId = payload.campusId || CAMPUS.id;
   user.bio = 'New BookBack campus member.';
@@ -849,6 +862,13 @@ export function loginDemoUser(identifier: string, password: string): User {
     saveDatabase(database);
   }
   if (user.isSuspended) throw new Error('This demo account is currently suspended.');
+  if (user.password && password !== user.password) {
+    throw new Error('Incorrect email or password.');
+  }
+  if (!user.password) {
+    user.password = password;
+    saveDatabase(database);
+  }
   return user;
 }
 
@@ -877,7 +897,7 @@ export function initializeDemoSetup(payload: Record<string, unknown>): User {
       throw new Error('Demo administration has already been initialized.');
     }
     const superAdmin = payload.superAdmin as
-      | { name?: string; email?: string; collegeId?: string }
+      | { name?: string; email?: string; collegeId?: string; password?: string }
       | undefined;
     if (!superAdmin?.name || !superAdmin.email || !superAdmin.collegeId) {
       throw new Error('Complete the Main Owner details to initialize the demo.');
@@ -894,6 +914,7 @@ export function initializeDemoSetup(payload: Record<string, unknown>): User {
       8,
       'super_admin',
       DEFAULT_PERMISSIONS,
+      superAdmin.password,
     );
     database.users.push(admin);
     for (const key of ['teamAdmin1', 'teamAdmin2']) {
@@ -903,6 +924,7 @@ export function initializeDemoSetup(payload: Record<string, unknown>): User {
             email?: string;
             collegeId?: string;
             permissions?: TeamPermission[];
+            password?: string;
           }
         | undefined;
       if (team?.name && team.email && team.collegeId) {
@@ -917,6 +939,7 @@ export function initializeDemoSetup(payload: Record<string, unknown>): User {
             8,
             'team_admin',
             team.permissions || DEFAULT_PERMISSIONS,
+            team.password,
           ),
         );
       }

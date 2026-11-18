@@ -34,10 +34,10 @@ export function SetupPage({ onNavigate }: SetupPageProps) {
   const [campusDomain, setCampusDomain] = useState('mitsgwalior.in');
 
   const [superAdmin, setSuperAdmin] = useState({
-    name: '',
-    email: '',
+    name: 'Campus Owner',
+    email: 'admin@gmail.com',
     collegeId: 'SUPER001',
-    password: '',
+    password: 'admin123',
   });
 
   const [includeTeam1, setIncludeTeam1] = useState(true);
