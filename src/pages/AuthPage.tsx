@@ -339,6 +339,25 @@ export function AuthPage({ onNavigate }: AuthPageProps) {
               >
                 {submitting ? 'Creating Account...' : 'Create Student Account'}
               </button>
+
+              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                    Platform administrator?
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Configure the campus and admin accounts.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => onNavigate('/setup')}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold text-[#0F5132] dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-950 transition-colors cursor-pointer min-h-[44px]"
+                >
+                  <ShieldCheck className="w-4 h-4" aria-hidden="true" />
+                  Open Admin Setup
+                </button>
+              </div>
             </form>
           )}
         </div>
